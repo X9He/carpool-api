@@ -27,17 +27,17 @@ def login():
     auth = request.authorization
 
     if not auth or not auth.username or not auth.password:
-        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
+        return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    db_users = db.user
-    login_user = db_users.find_one({'name': request.form['username']})
-
+    db_users = db.users
+    login_user = db_users.find_one({'username': auth.username})
+    print(auth.username)
     if not login_user:
-        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
+        return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    if bcrypt.hashpw(request.form['password'].encode('utf-8'), login_user['password']) == login_user['password'].encode('utf-8'):
-        session['username'] = request.form['username']
-        return get_token(login_user.username)
+    if bcrypt.hashpw(auth.password.encode('utf-8'), login_user['password']) == \
+            login_user['password']:
+        return get_token(login_user['username'])
 
     return make_response('Could not verify!', 401, {'WWW-Authenticate': 'Basic realm = "login required"'})
 
@@ -54,10 +54,10 @@ def register():
     if request.method == 'POST':
         body = get_json_from_request()
         username_ = body['username']
-        existing_user = db.users.find_one({'name': username_})
+        existing_user = db.users.find_one({'username': username_})
         if existing_user is None:
             hash_pass = bcrypt.hashpw(body['password'].encode('utf-8'), bcrypt.gensalt())
-            db.users.insert_one({'name': username_, 'password': hash_pass})
+            db.users.insert_one({'username': username_, 'password': hash_pass})
             session['username'] = username_
             return get_token(username_)
         return jsonify({'message': 'User already exists!'}), 409
@@ -78,7 +78,7 @@ def token_required(f):
 
         try:
             db_users = db.user
-            login_user = db_users.find_one({'name': request.form['username']})
+            login_user = db_users.find_one({'username': request.form['username']})
             data = jwt.decode(token, app.config['SECRET_KEY'])
             current_user = db_users.find_one({'public_id': data['public_id']})
         except:
@@ -91,14 +91,22 @@ def token_required(f):
 
 @app.route('/register', methods=['GET', 'POST'])
 @token_required
-def cars():
+def cars(current_user):
     if request.method == 'POST':
+        body = get_json_from_request()
+        carname_ = body['carname']
+        # current_user.
+        existing_user = db.cars.find_one({'user_id': current_user, 'carname': carname_})
         return True
     return False
 
 
 def get_json_from_request():
     return json.loads(request.data.decode('utf-8'))
+
+
+def get_token_from_request():
+    return request.headers['x-access-token']
 
 
 @app.errorhandler(404)
