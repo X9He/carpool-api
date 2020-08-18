@@ -64,7 +64,6 @@ def register():
     return jsonify({'Not Found'}), 404
 
 
-@app.route('/car', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -89,7 +88,7 @@ def token_required(f):
     return decorated
 
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/cars', methods=['GET', 'POST'])
 @token_required
 def cars(current_user):
     if request.method == 'POST':
@@ -98,6 +97,8 @@ def cars(current_user):
         # current_user.
         existing_user = db.cars.find_one({'user_id': current_user, 'carname': carname_})
         return True
+    if request.method == 'GET':
+        print("trying to get cars")
     return False
 
 
