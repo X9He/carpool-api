@@ -61,7 +61,7 @@ def register():
             session['username'] = username_
             return get_token(username_)
         return jsonify({'message': 'User already exists!'}), 409
-    return jsonify({'Not Found'}), 404
+    return jsonify({'User Not Found'}), 404
 
 
 def token_required(f):
@@ -91,15 +91,24 @@ def token_required(f):
 @app.route('/cars', methods=['GET', 'POST'])
 @token_required
 def cars(current_user):
+    print(current_user)
     if request.method == 'POST':
         body = get_json_from_request()
-        carname_ = body['carname']
-        # current_user.
-        existing_user = db.cars.find_one({'user_id': current_user, 'carname': carname_})
-        return True
+        username_ = current_user['username']
+        carname_ = body['name']
+        body['username'] = username_
+        existing_car = db.cars.find_one({'username': username_, 'name': carname_})
+        if existing_car is None:
+            db.cars.insert_one(body)
+            return True
+        return jsonify({'message': 'Car already exists!'}), 409
     if request.method == 'GET':
-        print("trying to get cars")
-    return False
+        username_ = current_user['username']
+        carname_ = request.args.get('carName')
+        existing_car = db.cars.find_one({'username': username_, 'carname': carname_})
+        if existing_car is None:
+            return jsonify({'Car Not Found'}), 404
+        return jsonify(existing_car)
 
 
 def get_json_from_request():
@@ -120,4 +129,4 @@ db = client.db
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-app.run()
+app.run(debug=True)
