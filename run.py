@@ -31,7 +31,6 @@ def login():
 
     db_users = db.users
     login_user = db_users.find_one({'username': auth.username})
-    print(auth.username)
     if not login_user:
         return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
@@ -76,10 +75,8 @@ def token_required(f):
             return jsonify({'message': 'Token is missing!'}), 401
 
         try:
-            db_users = db.user
-            login_user = db_users.find_one({'username': request.form['username']})
-            data = jwt.decode(token, app.config['SECRET_KEY'])
-            current_user = db_users.find_one({'public_id': data['public_id']})
+            decoded_body = jwt.decode(token.encode('utf-8'), app.secret_key)
+            current_user = db.users.find_one({'username': decoded_body['user']})
         except:
             return jsonify({'message': 'Token is invalid!'}), 401
 
@@ -91,7 +88,6 @@ def token_required(f):
 @app.route('/cars', methods=['GET', 'POST'])
 @token_required
 def cars(current_user):
-    print(current_user)
     if request.method == 'POST':
         body = get_json_from_request()
         username_ = current_user['username']
@@ -104,10 +100,9 @@ def cars(current_user):
         return jsonify({'message': 'Car already exists!'}), 409
     if request.method == 'GET':
         username_ = current_user['username']
-        carname_ = request.args.get('carName')
-        existing_car = db.cars.find_one({'username': username_, 'carname': carname_})
-        if existing_car is None:
-            return jsonify({'Car Not Found'}), 404
+        existing_car = list(db.cars.find({'username': username_}))
+        if len(existing_car) == 0:
+            return jsonify({'message': 'No cars for this user'}), 404
         return jsonify(existing_car)
 
 
