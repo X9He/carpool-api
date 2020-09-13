@@ -4,6 +4,7 @@ import datetime
 import bcrypt
 import flask
 import jwt
+from bson.json_util import loads, dumps
 from flask import request, session, make_response, jsonify
 from flask_login import LoginManager
 from pymongo import MongoClient
@@ -88,22 +89,22 @@ def token_required(f):
 @app.route('/cars', methods=['GET', 'POST'])
 @token_required
 def cars(current_user):
+    username = current_user['username']
     if request.method == 'POST':
         body = get_json_from_request()
-        username_ = current_user['username']
         carname_ = body['name']
-        body['username'] = username_
-        existing_car = db.cars.find_one({'username': username_, 'name': carname_})
+        body['username'] = username
+        existing_car = db.cars.find_one({'username': username, 'name': carname_})
         if existing_car is None:
             db.cars.insert_one(body)
             return True
         return jsonify({'message': 'Car already exists!'}), 409
     if request.method == 'GET':
-        username_ = current_user['username']
+        username_ = username
         existing_car = list(db.cars.find({'username': username_}))
         if len(existing_car) == 0:
             return jsonify({'message': 'No cars for this user'}), 404
-        return jsonify(existing_car)
+        return jsonify({'cars': dumps(existing_car)})
 
 
 def get_json_from_request():
