@@ -97,13 +97,21 @@ def cars(current_user):
         existing_car = db.cars.find_one({'username': username, 'name': carname_})
         if existing_car is None:
             db.cars.insert_one(body)
-            return True
+            return jsonify({'message': 'Car added'}), 200
         return jsonify({'message': 'Car already exists!'}), 409
     if request.method == 'GET':
-        username_ = username
-        existing_car = list(db.cars.find({'username': username_}))
+        existing_car = list(db.cars.find({'username': username}))
         if len(existing_car) == 0:
             return jsonify({'message': 'No cars for this user'}), 404
+        return jsonify({'cars': dumps(existing_car)})
+    if request.method == 'DELETE':
+        body = get_json_from_request()
+        car_id = body['id']
+        query_delete = {'username': username, '_id': car_id}
+        existing_car = db.cars.find_one(query_delete)
+        if existing_car is None:
+            return jsonify({'message': 'No car found for id' + ' for this user'}), 404
+        db.cars.delete_one(query_delete)
         return jsonify({'cars': dumps(existing_car)})
 
 
