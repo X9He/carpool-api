@@ -4,6 +4,7 @@ import datetime
 import bcrypt
 import flask
 import jwt
+from bson import ObjectId
 from bson.json_util import loads, dumps
 from flask import request, session, make_response, jsonify
 from flask_login import LoginManager
@@ -40,6 +41,20 @@ def login():
         return get_token(login_user['username'])
 
     return make_response('Could not verify!', 401, {'WWW-Authenticate': 'Basic realm = "login required"'})
+
+
+@app.route('/checkToken', methods=['POST'])
+def check_token():
+    token = get_token_from_request()
+    try:
+        decoded_body = jwt.decode(token.encode('utf-8'), app.secret_key)
+        current_user = db.users.find_one({'username': decoded_body['user']})
+        if current_user:
+            return jsonify({'message': 'Token is valid!'}), 200
+        else:
+            return jsonify({'message': 'Token that belong to user no longer exists!'}), 404
+    except:
+        return jsonify({'message': 'Token is invalid!'}), 401
 
 
 def get_token(username):
@@ -86,7 +101,7 @@ def token_required(f):
     return decorated
 
 
-@app.route('/cars', methods=['GET', 'POST'])
+@app.route('/cars', methods=['GET', 'POST', 'DELETE'])
 @token_required
 def cars(current_user):
     username = current_user['username']
@@ -106,7 +121,7 @@ def cars(current_user):
         return jsonify({'cars': dumps(existing_car)})
     if request.method == 'DELETE':
         body = get_json_from_request()
-        car_id = body['id']
+        car_id = ObjectId(body['$oid'])
         query_delete = {'username': username, '_id': car_id}
         existing_car = db.cars.find_one(query_delete)
         if existing_car is None:
@@ -115,11 +130,38 @@ def cars(current_user):
         return jsonify({'cars': dumps(existing_car)})
 
 
+@app.route('/trips', methods=['GET', 'POST', 'DELETE'])
+@token_required
+def trips(current_user):
+    username = current_user['username']
+    if request.method == 'POST':
+        body = get_json_from_request()
+        body['username'] = username
+        db.trips.insert_one(body)
+        return jsonify({'message': 'Car added'}), 200
+    if request.method == 'GET':
+        body = get_json_from_request()
+        trip_id = ObjectId(body['$oid'])
+        existing_trips = list(db.trips.find({'_id': trip_id}))
+        if len(existing_trips) == 0:
+            return jsonify({'message': 'No trips for this user'}), 404
+        return jsonify({'cars': dumps(existing_trips)})
+    if request.method == 'DELETE':
+        body = get_json_from_request()
+        trip_id = ObjectId(body['$oid'])
+        query_delete = {'username': username, '_id': trip_id}
+        existing_trip = db.trips.find_one(query_delete)
+        if existing_trip is None:
+            return jsonify({'message': 'No car found for id' + ' for this user'}), 404
+        db.cars.delete_one(query_delete)
+        return jsonify({'cars': dumps(existing_trip)})
+
+
 def get_json_from_request():
     return json.loads(request.data.decode('utf-8'))
 
 
-def get_token_from_request():
+def get_token_from_request() -> object:
     return request.headers['x-access-token']
 
 
