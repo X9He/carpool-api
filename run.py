@@ -140,12 +140,10 @@ def trips(current_user):
         db.trips.insert_one(body)
         return jsonify({'message': 'Car added'}), 200
     if request.method == 'GET':
-        body = get_json_from_request()
-        trip_id = ObjectId(body['$oid'])
-        existing_trips = list(db.trips.find({'_id': trip_id}))
+        existing_trips = list(db.trips.find({'username': username}))
         if len(existing_trips) == 0:
             return jsonify({'message': 'No trips for this user'}), 404
-        return jsonify({'cars': dumps(existing_trips)})
+        return jsonify({'trips': dumps(existing_trips)})
     if request.method == 'DELETE':
         body = get_json_from_request()
         trip_id = ObjectId(body['$oid'])
@@ -154,7 +152,7 @@ def trips(current_user):
         if existing_trip is None:
             return jsonify({'message': 'No car found for id' + ' for this user'}), 404
         db.cars.delete_one(query_delete)
-        return jsonify({'cars': dumps(existing_trip)})
+        return jsonify({'trips': dumps(existing_trip)})
 
 
 def get_json_from_request():
